@@ -1,0 +1,310 @@
+% Function for tracking CSs in images after 1st image.
+
+function [nmc,newmccn,mcclog,mark] = storem(dt,mt,tm,mm,cent,mccarea,sareaa,nob,nmc,mccloc,mcclog,lastnob,mark,lastloc,lastmccn,lastarea,IR)
+
+mccnf = 0;                 % No of new CS in the current image 
+newmccn = zeros(nob,14);   % stores CS info in new. 
+p = 0;                        % pointer for CSs in current image 
+merge = zeros(10,2);       % mereged CS id array 
+o = 1;                     % merge indicator
+s = size(IR);
+
+%%%%%%%%%%%%%%%%%%% Take a CS of current image and try to match it with CSs in earlier image %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+for m = 1:nob
+    
+    split = 0;                % Split indicatore
+    mccfound = 0;             % CS find indicator
+    
+    
+    tempK = 1000; temp = 0; ct = 0; 
+    
+    for j = 1:s(2)
+        for i = 1:s(1)
+            
+            if(mccloc(i,j,m) > 0)
+                
+                temp = temp + IR(i,j); 
+                ct = ct + 1; 
+                   
+                if IR(i,j) < tempK
+                    
+                    tempK = IR(i,j);
+                    
+                end
+            end
+        end
+    end
+    
+         mtep = temp/ct;
+
+    
+    for k = 1:lastnob
+        
+        if lastmccn(k,8) > 0  % Check if CS has terminated in last image (area == 0)
+  
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Check Overlap %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+            f = mccloc(:,:,m) + lastloc(:,:,k);
+            pixcount = 0;
+            
+            for j = 1:s(2)
+                for i = 1:s(1)
+                    if f(i,j) == 2
+                        pixcount = pixcount + 1;
+                    end
+                end
+            end
+            
+            ovlap_area_ct = min(mccarea(m),lastarea(k))/4;   % overlap threshold min 25%
+     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+            
+            if pixcount*64 > ovlap_area_ct              % Area threshold satisfied pixcount*(8x8)
+                                           
+                if mccfound == 0                           % Matched mth CS of current is not yet matched to any other CS in earlier image
+                    
+                    for i = 1:p
+                        
+                        if newmccn(i,1) == lastmccn(k,1)   %  (Matched CS of last iamge (kth) already matched with other
+                                                           %  CS in current image i.e. kth CS in last
+                                                           %  image is matching with 2 CSs in current image)
+                                                
+                            split = 1;                     % Declare split
+                            spno = i;                      % Store the location of previous macthed CS of current image
+                            
+                        end
+                    end
+                    
+                    if split == 1
+                        
+                        if newmccn(spno,14) >= sareaa(m) || ...
+                                newmccn(spno,8) >= mccarea(m) % Earlier matched CS is larger than current one i.e. mth.
+                                                          % So current CS is taken as new
+                            
+                            mccnf = mccnf + 1;            % increase count by 1
+                            a = nmc + mccnf;              % id for new CS                         
+                            p = p + 1;                    % new location in newmccn()
+                            
+                            %%%%%%%%%% Store new CS as new in newmccn() %%%%%%%%%
+                   
+                            newmccn(p,1)  = a;                     % id 
+                            newmccn(p,2)  = dt;                    % date
+                            newmccn(p,3)  = mt;                   % month
+                            newmccn(p,4)  = tm;                   % hour 
+                            newmccn(p,5)  = (mm-1)*30;       % minutes
+                            newmccn(p,6)  = cent(m,1);        % center latitude
+                            newmccn(p,7)  = cent(m,2);        % center longitude
+                            newmccn(p,8)  = round(mccarea(m));     % area
+                            newmccn(p,9)  = 1;                      % lifetime 
+                            newmccn(p,10)  = lastmccn(k,1); % split parent CS id
+                            newmccn(p,11) = 0;                     % Merged parent CS id
+                            newmccn(p,12) = 0;                     % Merged chile area/id
+                            newmccn(p,13) = round(tempK);  % Minimum temperature 
+                            newmccn(p,14) = round(sareaa(m));       % area of 208 K
+                            newmccn(p,15) = round(mtep);               % mean tb
+
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            
+                            mccfound = 1;                         % Current CS m is matched to CS in previous image
+                            temp  = k;                               % location of matched CS in lastmccn
+                            
+                        else                                             % Earlier matched CS is smaller than current one i.e. mth.
+                                                                            % So current one is taken as succesor and earliear as new
+                                   
+                            mccnf = mccnf + 1;                  % increase count by 1
+                            a = nmc + mccnf;                     % id for new CS       
+                            p = p+1;                                  % new location in newmccn()
+                            
+                            %%%%%%%%%% Store new CS as successor in newmccn() %%%%%%%%%
+                            
+                            newmccn(p,1)  = lastmccn(k,1);
+                            newmccn(p,2)  = dt;
+                            newmccn(p,3)  = mt;               % month
+                            newmccn(p,4)  = tm;
+                            newmccn(p,5)  = (mm-1)*30;
+                            newmccn(p,6)  = cent(m,1);
+                            newmccn(p,7)  = cent(m,2);
+                            newmccn(p,8)  = round(mccarea(m));                       
+                            newmccn(p,9)  = lastmccn(k,9) + 1; 
+                            newmccn(p,10)  = lastmccn(k,10);       % split parent CS id
+                            newmccn(p,11) =  lastmccn(k,11);
+                            newmccn(p,12) = 0;
+                            newmccn(p,13) = round(tempK);
+                            newmccn(p,14) = round(sareaa(m));
+                            newmccn(p,15) = round(mtep);     % area of 221 K
+
+                            %%%%%%%%%% Store previous CS as new in newmccn() %%%%%%%%%
+                            
+                            newmccn(spno,1) = a;
+                            newmccn(spno,9) = 1;
+                            newmccn(spno,10) = lastmccn(k,1);    % split parent CS id
+                            
+                            mccfound = 1;                       % Current CS m is matched to CS in previous image
+                            temp  = k;                          % location of matched CS in lastmccn
+                        end
+                        
+                    else
+                        
+         %%%%%%%%%%%%  Curent CS m is not split of CS in previous image %%%%%%%%%%%%%
+         %%%%%%%%%%%%  Declare it as successor of kth CS of previous image %%%%%%%%%%
+         
+                        p = p+1;
+                        newmccn(p,1)  = lastmccn(k,1);
+                        newmccn(p,2)  = dt;
+                        newmccn(p,3)  = mt;
+                        newmccn(p,4)  = tm;
+                        newmccn(p,5)  = (mm-1)*30;
+                        newmccn(p,6)  = cent(m,1);
+                        newmccn(p,7)  = cent(m,2);
+                        newmccn(p,8)  = round(mccarea(m));
+                        newmccn(p,9)  = lastmccn(k,9) + 1;
+                        newmccn(p,10)  = lastmccn(k,10);
+                        newmccn(p,11) =  lastmccn(k,11);
+                        newmccn(p,12) = 0;
+                        newmccn(p,13) = round(tempK);
+                        newmccn(p,14)  = round(sareaa(m));
+                        newmccn(p,15)  = round(mtep);
+                        mccfound = 1;          % Current CS m is matched to CS in previous image
+                        temp  = k;             % location of matched CS in lastmccn
+                    end
+                   
+                    
+                else  % ( mccfound == 1)
+                    
+         %%%%%%%%%%%% Current CS m has found a macth previously %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+         %%%%%%%%%%%% Two CSs of last image matching with one in current image ===> Merger %%%%%%%%%%
+                        
+                    if lastmccn(k,14) >= lastmccn(temp,14)         % kth matched is lager than earlier (temp) matched CS
+                        merge(o,1) = lastmccn(k,1);                  % Declare kth one as parent      
+                        merge(o,2) = lastmccn(temp,1);            % Declare temp one as child 
+                        newmccn(p,1)   =   lastmccn(k,1);           % Replace temp id with kth id
+                        newmccn(p,9)   =   lastmccn(k,9) + 1;     % Replace temp lifetime with kth lifetime
+                        newmccn(p,10) =   lastmccn(k,10);
+                        newmccn(p,14) =   round(lastmccn(k,14));
+                        newmccn(p,12) =   round(newmccn(p,12) + lastmccn(temp,8));
+                        temp = k;                               % Replace location of matched CS in lastmccn
+                    else
+                        merge(o,2) = lastmccn(k,1);                % Declare kth one as child 
+                        merge(o,1) = lastmccn(temp,1);          % Declare temp one as parent  
+                        newmccn(p,12) = round(newmccn(p,12) + lastmccn(k,8));
+                    end                    
+                    o = o+1;                                    % Increament merge array pointer
+                end
+            end
+        end
+    end
+    
+    if mccfound == 0  % No match found for mth CS of current image in last image
+        
+        %%%%%%%%%%%%%%%%%%% Declare mth CS as new %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        mccnf = mccnf + 1;    
+        a = nmc + mccnf;
+        p = p+1;
+        
+        newmccn(p,1) = a;
+        newmccn(p,2) = dt;
+        newmccn(p,3) = mt;
+        newmccn(p,4) = tm;
+        newmccn(p,5) = (mm-1)*30;
+        newmccn(p,6) = cent(m,1);
+        newmccn(p,7) = cent(m,2);
+        newmccn(p,8) = round(mccarea(m));
+        newmccn(p,9) = 1;
+        newmccn(p,10) = 0;
+        newmccn(p,11) = 0;
+        newmccn(p,12) = 0;
+        newmccn(p,13) = tempK;
+        newmccn(p,14) = sareaa(m);
+        newmccn(p,15) = mtep;
+
+        
+    end
+end
+
+%%%%%%%%%%%%%%%%% Transfer newmccn to mcclog %%%%%%%%%%%%%%%%%
+
+for m = 1:nob
+    
+    mark = mark +1;
+    
+    mcclog(mark,1) = newmccn(m,1);
+    mcclog(mark,2) = newmccn(m,2);
+    mcclog(mark,3) = newmccn(m,3);
+    mcclog(mark,4) = newmccn(m,4);
+    mcclog(mark,5) = newmccn(m,5);
+    mcclog(mark,6) = newmccn(m,6);
+    mcclog(mark,7) = newmccn(m,7);
+    mcclog(mark,8) = newmccn(m,8);
+    mcclog(mark,9) = newmccn(m,9);
+    mcclog(mark,10) = newmccn(m,10);
+    mcclog(mark,11) = newmccn(m,11);
+    mcclog(mark,12) = newmccn(m,12);
+    mcclog(mark,13) = newmccn(m,13);
+    mcclog(mark,14) = newmccn(m,14);
+    mcclog(mark,15) = newmccn(m,15);
+
+end
+
+ %%%%%%%%%%%%%%%%%%%%%%%% For dead CS of lastmccn %%%%%%%%%%%%%%%%%%%%%%%%%
+
+for i = 1:1:lastnob
+    
+    dead = 0;              % CS Dead indicator 
+    merged = 0;            % CS merge indicator 
+    
+    %%%%%%%%%% Check newmccn for match from lastmccn %%%%%%%%%%%%%%
+    
+    for j = 1:1:nob
+        if newmccn(j,1) == lastmccn(i,1)
+            dead = 1;     % not daed, match found 
+        end
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    if dead == 0          % (ith CS of lastmccn is dead) 
+     
+        
+                %%%%%%%% Check if it has merged %%%%%%%%%%
+                
+        for j = 1:o-1 
+            
+            if merge(j,2) == lastmccn(i,1)
+                merged = j;  % ith CS is merged
+            end
+            
+        end
+        %%
+        
+        mark = mark + 1;    % increament pointer to mcclog by 1
+        
+                %%%%%%%%%%%%% Store ith CS as dead CS in mcclog %%%%%%%%%%%
+                
+        mcclog(mark,1) = lastmccn(i,1);
+        mcclog(mark,2) = dt;
+        mcclog(mark,3) = mt;
+        mcclog(mark,4) = tm;
+        mcclog(mark,5) = (mm-1)*30;
+        mcclog(mark,6) = lastmccn(i,6);
+        mcclog(mark,7) = lastmccn(i,7);
+        mcclog(mark,8) = 0;
+        mcclog(mark,9) = lastmccn(i,9);
+        mcclog(mark,10) = lastmccn(i,10);
+        if merged == 0
+            mcclog(mark,11) = 0;
+        else
+            mcclog(mark,11) = merge(merged,1);
+        end
+        mcclog(mark,12) = 0;
+        mcclog(mark,13) = lastmccn(i,13);
+        mcclog(mark,14) = lastmccn(i,14);
+        mcclog(mark,15) = lastmccn(i,15);
+ 
+    end
+end
+
+nmc = nmc + mccnf;         % add no of CS found in this image to total count of CS
+
+clear f;
+end
