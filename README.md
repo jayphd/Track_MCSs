@@ -5,7 +5,7 @@ The tracking is based on the overlap techinique (Williams and Houze, 1987) where
 2. Run Track_CS.m for tracking of MCSs in the gridded dataset.
 3. MCS are stored in .csv files in the 'MCSs_dataset' folder.
 
-Note: The LAT-LON grid is set to (1/12) degree spatial resolution. The native INSAT-3D resolution is 4 km. Modify the spatial resolution of the grid as needed.
+Note: The LAT-LON grid is set to (1/12.5) degree spatial resolution. The native Kalpana-1/INSAT-3D resolution is 8 km/4 km. Modify the spatial resolution of the grid as needed.
 
 Tracking dataset columns:
 
