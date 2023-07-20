@@ -10,7 +10,7 @@
 clc; clear;close all;
 %%%%%%%%%%%%%%%%%%%%%%% Latitude and Longitude Grid %%%%%%%%%%%%%%%%%%%%%%%
 
-[LatGrid, LonGrid] = meshgrid(0:(1/12):30,(60.08:(1/12):100)); % declare native lat-lon grid
+[LatGrid, LonGrid] = meshgrid(0:(1/12.5):30,(60.08:(1/12.5):100)); % declare native lat-lon grid
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Declare Variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
